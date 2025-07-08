@@ -51,9 +51,9 @@ def run(playwright: Playwright, username: str, password: str, client_code: str, 
 
     
 
-#เลือกวันที่
-    page.get_by_role("cell", name="Krungthai Corporate Online :").locator("img").nth(2).click()
-    page.get_by_role("link", name="1", exact=True).click()
+# #เลือกวันที่
+    # page.get_by_role("cell", name="Krungthai Corporate Online :").locator("img").nth(2).click()
+    # page.get_by_role("link", name="1", exact=True).click()
 
 
 
@@ -96,103 +96,86 @@ def run(playwright: Playwright, username: str, password: str, client_code: str, 
 
  
 
-    # --- คลิกปุ่มดาวน์โหลด ---
-    page.get_by_role("button", name="Download").click()
+    try:
+        # --- ตรวจสอบว่ามีปุ่ม Download หรือไม่ ---
+        download_button = page.get_by_role("button", name="Download")
 
+        # รอปุ่ม Download ให้ปรากฏ (timeout 10 วินาที)
+        download_button.wait_for(state="visible", timeout=10000)
 
-    # --- รอให้การดาวน์โหลดเกิดขึ้น ---
-    with page.expect_download() as download_info:
-        page.get_by_label("", exact=True).get_by_role("button", name="Download").click()
+        # --- คลิกปุ่มดาวน์โหลด ---
+        download_button.click()
 
-    # ได้อ็อบเจกต์ของไฟล์ที่ดาวน์โหลด
-    download = download_info.value
+        # --- รอให้การดาวน์โหลดเกิดขึ้น ---
+        with page.expect_download() as download_info:
+            page.get_by_label("", exact=True).get_by_role("button", name="Download").click()
 
-    # ดูชื่อไฟล์จริงที่ถูกดาวน์โหลด
-    original_filename = download.suggested_filename
-    print(f"📎 ไฟล์ที่ดาวน์โหลดชื่อเดิม: {original_filename}")
+        # ได้อ็อบเจกต์ของไฟล์ที่ดาวน์โหลด
+        download = download_info.value
 
-    # --- เตรียม path สำหรับบันทึกไฟล์ ---
-    download_path = os.path.join(os.getcwd(), "Doc_downloads")
-    os.makedirs(download_path, exist_ok=True)
+        # ดูชื่อไฟล์จริงที่ถูกดาวน์โหลด
+        original_filename = download.suggested_filename
+        print(f"📎 ไฟล์ที่ดาวน์โหลดชื่อเดิม: {original_filename}")
 
-    # --- กำหนดชื่อไฟล์ที่ใช้บันทึก ---
-    file_ext = os.path.splitext(original_filename)[1]  # เช่น ".zip"
-    download_file_name = f"{idCode}{file_ext}"         # เช่น 123456.zip
-    download_file_path = os.path.join(download_path, download_file_name)
+        # --- เตรียม path สำหรับบันทึกไฟล์ ---
+        download_path = os.path.join(os.getcwd(), "Doc_downloads")
+        os.makedirs(download_path, exist_ok=True)
 
-    # --- บันทึกไฟล์ลงในโฟลเดอร์ ---
-    download.save_as(download_file_path)
-    print(f"✅ ไฟล์ถูกบันทึกไว้ที่: {download_file_path}")
+        # --- กำหนดชื่อไฟล์ที่ใช้บันทึก ---
+        file_ext = os.path.splitext(original_filename)[1]  # เช่น ".zip"
+        download_file_name = f"{idCode}{file_ext}"         # เช่น 123456.zip
+        download_file_path = os.path.join(download_path, download_file_name)
 
-    # --- ถ้าเป็นไฟล์ .zip ให้ทำการแตกไฟล์และจัดการชื่อไฟล์ ---
-    if file_ext.lower() == ".zip":
-        extract_folder = os.path.join(download_path, f"{idCode}_extracted")
-        os.makedirs(extract_folder, exist_ok=True)
+        # --- บันทึกไฟล์ลงในโฟลเดอร์ ---
+        download.save_as(download_file_path)
+        print(f"✅ ไฟล์ถูกบันทึกไว้ที่: {download_file_path}")
 
-        with zipfile.ZipFile(download_file_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_folder)
-            print(f"📂 แตกไฟล์ ZIP แล้วที่: {extract_folder}")
+        # --- ถ้าเป็นไฟล์ .zip ให้ทำการแตกไฟล์และจัดการชื่อไฟล์ ---
+        if file_ext.lower() == ".zip":
+            extract_folder = os.path.join(download_path, f"{idCode}_extracted")
+            os.makedirs(extract_folder, exist_ok=True)
 
-        # --- เปลี่ยนชื่อและย้ายไฟล์ออกมาชั้นนอก ---
-        for idx, filename in enumerate(sorted(os.listdir(extract_folder)), start=1):
-            old_path = os.path.join(extract_folder, filename)
+            with zipfile.ZipFile(download_file_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_folder)
+                print(f"📂 แตกไฟล์ ZIP แล้วที่: {extract_folder}")
 
-            # ข้ามโฟลเดอร์ย่อย (ถ้ามี)
-            if os.path.isdir(old_path):
-                continue
+            # --- เปลี่ยนชื่อและย้ายไฟล์ออกมาชั้นนอก ---
+            for idx, filename in enumerate(sorted(os.listdir(extract_folder)), start=1):
+                old_path = os.path.join(extract_folder, filename)
 
-            ext = os.path.splitext(filename)[1]
-            # เพิ่มเลขลำดับเพื่อไม่ให้ชื่อไฟล์ซ้ำกัน
-            new_name = f"{idCode}{ext}"  # เช่น 2716007306_01.csv
-            new_path = os.path.join(download_path, new_name)  # ชั้นนอก
+                # ข้ามโฟลเดอร์ย่อย (ถ้ามี)
+                if os.path.isdir(old_path):
+                    continue
 
-            os.rename(old_path, new_path)
-            print(f"📤 ย้ายและเปลี่ยนชื่อ {filename} → {new_name}")
+                ext = os.path.splitext(filename)[1]
+                # เพิ่มเลขลำดับเพื่อไม่ให้ชื่อไฟล์ซ้ำกัน
+                new_name = f"{idCode}_{idx:02d}{ext}"  # เช่น 2716007306_01.csv
+                new_path = os.path.join(download_path, new_name)  # ชั้นนอก
 
-        # --- ลบโฟลเดอร์ที่แตกไฟล์ (ถ้าไม่ต้องการเก็บไว้) ---
-        os.rmdir(extract_folder)
+                os.rename(old_path, new_path)
+                print(f"📤 ย้ายและเปลี่ยนชื่อ {filename} → {new_name}")
 
- # --- อ่านและแปลง encoding จาก CSV ที่โหลด ---
-        data = []
-        csv_path = os.path.join(download_path, new_name)
+            # --- ลบโฟลเดอร์ที่แตกไฟล์ (ถ้าไม่ต้องการเก็บไว้) ---
+            os.rmdir(extract_folder)
 
-        # ลองอ่านด้วย encoding ต่าง ๆ
-        encodings_to_try = ['utf-8', 'utf-8-sig', 'cp874', 'tis-620', 'ISO-8859-11']
-        for enc in encodings_to_try:
-            try:
-                with open(csv_path, 'r', encoding=enc) as src_file:
-                    lines = src_file.readlines()
-                    print(f"✅ อ่านไฟล์สำเร็จด้วย encoding: {enc}")
-                    break
-            except UnicodeDecodeError as e:
-                print(f"❌ อ่านไม่ได้ด้วย encoding: {enc} → {e}")
-                lines = None
+        print("✅ ดาวน์โหลดและประมวลผลไฟล์เสร็จสิ้น")
 
-       # ถ้าอ่านได้ → เขียนทับใหม่แบบตัด 2 แถวแรก
-        if lines:
-            lines = lines[2:]  # 🔥 ลบ 2 แถวแรก
+    except Exception as e:
+        print(f"❌ ไม่พบปุ่ม Download หรือเกิดข้อผิดพลาด: {e}")
+        print("🔄 ทำการ logout ทันที...")
+        page.get_by_role("button", name="logout").click()
 
-            with open(csv_path, 'w', encoding='utf-8', newline='') as dst_file:
-                dst_file.writelines(lines)
-            print(f"📄 เขียนทับไฟล์ด้วย UTF-8 แล้ว และลบ 2 แถวแรก → {csv_path}")
+    # ปิดหน้าต่างและ logout
+    try:
+        page.get_by_role("img", name="close").click()
+    except:
+        print("ไม่พบปุ่ม close")
 
-            # อ่านข้อมูลเข้า data
-            with open(csv_path, 'r', encoding='utf-8') as csv_file:
-                csv_reader = csv.reader(csv_file)
-                for row in csv_reader:
-                    data.append(row)
-        else:
-            print("⚠️ ไม่สามารถอ่านไฟล์ CSV ได้เลยสัก encoding")
-
-
-
-
-    
-                    
-
-
-
-
+    try:
+        page.get_by_role("button", name="logout").click()
+        print("✅ Logout สำเร็จ")
+    except:
+        print("ไม่พบปุ่ม logout")
 
 
 
