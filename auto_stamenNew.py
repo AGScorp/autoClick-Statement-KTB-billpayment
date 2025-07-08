@@ -21,13 +21,23 @@ def run(playwright: Playwright, username: str, password: str, client_code: str, 
     company_ID = client_code
 
      
-    browser = playwright.chromium.launch(headless=False)
-    # executable_path = "/usr/bin/google-chrome"
-    # downloads_path = "/home/ags-test-bot/AutoClick/autoClickAccountStatement"
-    # browser = playwright.chromium.launch(headless=False,executable_path=executable_path,args=["--no-sandbox","--disable-setuid-sandbox"],downloads_path=downloads_path,channel="stable",chromium_sandbox=False)
+    # เปิด browser แบบแสดงหน้าต่าง
+    browser = playwright.chromium.launch(
+        headless=False,
+        args=[
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--start-maximized"
+        ]
+    )
     context = browser.new_context()
     page = context.new_page()
+
+    print("🌐 กำลังเปิดหน้าเว็บ Krungthai Corporate Online...")
     page.goto("https://www.bizgrowing.krungthai.com/corporate/Login.do?cmd=init")
+    print("✅ เปิดหน้าเว็บสำเร็จ")
 
 
 
@@ -96,12 +106,14 @@ def run(playwright: Playwright, username: str, password: str, client_code: str, 
 
  
 
+    logged_out = False
+
     try:
         # --- ตรวจสอบว่ามีปุ่ม Download หรือไม่ ---
         download_button = page.get_by_role("button", name="Download")
 
         # รอปุ่ม Download ให้ปรากฏ (timeout 10 วินาที)
-        download_button.wait_for(state="visible", timeout=10000)
+        download_button.wait_for(state="visible", timeout=15)
 
         # --- คลิกปุ่มดาวน์โหลด ---
         download_button.click()
@@ -163,19 +175,26 @@ def run(playwright: Playwright, username: str, password: str, client_code: str, 
     except Exception as e:
         print(f"❌ ไม่พบปุ่ม Download หรือเกิดข้อผิดพลาด: {e}")
         print("🔄 ทำการ logout ทันที...")
-        page.get_by_role("button", name="logout").click()
+        try:
+            page.get_by_role("button", name="logout").click()
+            print("✅ Logout สำเร็จ (จาก error handler)")
+            logged_out = True
+        except:
+            print("ไม่สามารถ logout ได้")
+            logged_out = False
 
-    # ปิดหน้าต่างและ logout
-    try:
-        page.get_by_role("img", name="close").click()
-    except:
-        print("ไม่พบปุ่ม close")
+    # ปิดหน้าต่างและ logout (เฉพาะเมื่อยังไม่ได้ logout)
+    if not logged_out:
+        try:
+            page.get_by_role("img", name="close").click()
+        except:
+            print("ไม่พบปุ่ม close")
 
-    try:
-        page.get_by_role("button", name="logout").click()
-        print("✅ Logout สำเร็จ")
-    except:
-        print("ไม่พบปุ่ม logout")
+        try:
+            page.get_by_role("button", name="logout").click()
+            print("✅ Logout สำเร็จ")
+        except:
+            print("ไม่พบปุ่ม logout")
 
 
 
@@ -194,10 +213,6 @@ def run(playwright: Playwright, username: str, password: str, client_code: str, 
 
 
     # page.pause() # รอให้หน้าโหลดเสร็จ //////////
-    # ปิดหน้าต่างและ logout
-    page.get_by_role("button", name="logout").click()
-    # page.get_by_role("img", name="close").click()
-    # page.get_by_role("button", name="logout").click()
 
 
 
